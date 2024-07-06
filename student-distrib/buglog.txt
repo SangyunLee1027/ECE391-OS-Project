@@ -1,0 +1,118 @@
+Checkpoint 1
+
+#1. WHAT: RTC not working (General Protection Fault)
+    WHO : void enable_irq(uint32_t irq_num) and void disable_irq(uint32_t irq_num) in i8259.c
+    WHEN: When we try to do rtc interrupt,
+    HOW : Flip the masked and unmasked bits of the specific IRQ.
+
+#2. WHAT: Keyboard echos the wrong key on the monitor
+    WHO : void keyboard_handler(void) in keyboaard.c
+    WHEN: When the keyboard is pressed and echo the key on the monitor,
+    HOW : As the scan code starts from 0x01, we should subtract one from the input to match the scancode table.
+
+#3. WHAT: Functions in interrupt_wrapper was not detected. (such instructions are not declared error)
+    WHO : interrupt_wrapper.h and interrupt_wrapper_asm.S
+    WHEN: When we try testing idt
+    HOW : We fixed by using #ifndef, so the interrupt_wrapper_asm is defined as assembly, so other functions are not considedered as assembly.
+
+#4. WHAT: Keyboard prints  blank after the character
+    WHO : void keyboard_handler(void) in keyboard.c
+    WHEN: When we try the keyboard interrupt
+    HOW : We found that we have not handle the release signal, so we handled the case using if statement.
+
+#5. WHAT: Double Fault 
+    WHO : paging.c
+    WHEN: when we try to implement paging
+    HOW : Basically, we made the page table for the kernel which we should not, so we just directly put the address of the kernel into the page directory.
+    
+
+Checkpoint 2
+
+#1. WHAT: Page Fault Error for file system intitialization
+    WHO : void file_sys_init(uint32_t boot_block_addr) in file_system.c
+    WHEN: When initializing the file system,
+    HOW : We fixed into (boot_block_ptr->num_inodes) instead of (boot_block_ptr->num_inodes) * (block size) for the pointer of data_block_start.
+
+#2. WHAT: Page Fault Error for printing
+    WHO : read_data_test in test.c
+    WHEN: When we printf( "%d", byte_read);
+    HOW : We fixed into printf( "%d", byte_read) not printf(byte_read).
+
+#3. WHAT: the cursor disappears
+    WHO : keyboard.c
+    WHEN: When the entire screen scrolls,
+    HOW : Foreground the color was set it to black and looks like the cursor disappears, but actually it was not.
+
+#4. WHAT: Not able to print ELF
+    WHO : lib.c
+    WHEN: When we test reading executable files,
+    HOW : putc function did not cover the edge case where when the character reached the end of the screen, so we coverd it.
+    
+
+
+Checkpoint 3
+
+#1. WHAT: Wrong virtual address (exe_v_addr) in syscall.c
+    WHO : int32_t execute(const uint8_t* command) in syscall.c
+    WHEN: When try find the virtual address
+    HOW : The address of virtual address was stored into the exe_v_addr. Thus, we used * to contain the virtual address, instead of the addres of virtual address, into the exe_v_addr.
+
+#2. WHAT: not reading the syscall() in syscall_helper.S
+    WHO : SET_IDT_ENTRY(idt[SYSTEM_CALL_ADDR], systemcall_handler) in idt.c
+    WHEN: When we call syscall()
+    HOW : Set syscall() in syscall_helper.S as a global variable and set SET_IDT_ENTRY(idt[SYSTEM_CALL_ADDR], syscall_handler) in idt.c. Change the second variable into the function newly defined in syscall_helper.S.
+
+#3. WHAT: x86 code in syscall.c
+    WHO : int32_t execute(const uint8_t* command) in syscall.c
+    WHEN: When try to include x86 code in c file,
+    HOW : include x86 code into the execute() function by using %number that contains the values such as USER_DS, user_esp, USER_CS, and virtual address.
+     
+Checkpoint 4
+
+#1. WHAT: Page Fault when we exit from second shell
+    WHO: int32_t halt(uint8_t status)
+    WHEN: When try to exit from second shell
+    HOW: We found that unmapping was wrong, it has to go previous pid, but it went to the first always.
+
+#2. WHAT: cat without argument
+    WHO:  int32_t execute(const uint8_t* command)
+    WHEN: When we execute cat without any argument
+    HOW:  Make sure the length of the argument is not 0 using if statement
+
+#3. WHAT: cat prints with verylargettextwithverylongname.txt
+    WHO:  int32_t read_dentry_by_name (const uint8_t* fname, dir_entry_t* dentry)
+    WHEN: when we execute ls
+    HOW:  We filtered out the text file with over 32 letters using if statement
+
+
+Checkpoint 5
+
+#1. WHAT: fish was played in different terminal
+    WHO: void scheduler()
+    WHEN: when we try to execute fish
+    HOW: we remapped the videomemory after change the process.
+
+#2. WHAT: Page for multiple terminals did not work
+    WHO: kernel
+    WHEN: when we try to access the address we did paging
+    HOW: we moved page_init which reset all paging before the terminal open which initialize the video memory for terminals.
+
+#3. WHAT: the first shell in terminals had wrong parent pid
+    WHO: execute()
+    WHEN: when we are executing the first shell in terminals
+    HOW: We made another execution function for first shell
+
+#4. WHAT: running two programs in two different terminals page faults
+    WHO: switch_process
+    WHEN: Trying to exe a second program
+    HOW: Switch process was not restoring the correct esp and ebp for the processes
+
+#5. WHAT: Typing or printing in one terminal prints to another
+    WHO: terminal_read
+    WHEN: Typing and during exe
+    HOW: Terminal read was adjusted to only read the keyboard when it is in focus
+
+#6. WHAT: Rapidly switching between terminals causes a crash
+    WHO: switch_terminal
+    WHEN: Trying to switch to different terminals very quickly
+    HOW: switch_terminal was incorrectly switching the processes, and with incorrect esp/ebp data
